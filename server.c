@@ -2,7 +2,7 @@
 #include <netinet/in.h>
 #include <stdio.h>
 // #include <stdlib.h>
-// #include <string.h>
+#include <string.h>
 // https://pubs.opengroup.org/onlinepubs/009604499/basedefs/sys/socket.h.html
 #include <sys/socket.h>
 #include <unistd.h>
@@ -130,6 +130,26 @@ int main() {
 	for (int i = 0; i < num_of_bytes_read; i++) {
 		printf("Char number %i: %c\n", i, request_buffer[i]);
 	}
+
+	// Respond to client
+	char * response = "Hey client, how's it going";
+
+	int num_of_bytes_sent = send(
+		// When sending a response from the server we need to use the client socket rather than the server socket
+		connected_client_socket,
+		// message
+		response,
+		// message size
+		strlen(response),
+		// flags
+		0
+	);
+
+	if (num_of_bytes_sent < 0) {
+		printf("Failed to respond to client");
+		return 1;
+	}
+	
 
 	// Close the connected socket
 	close(connected_client_socket);

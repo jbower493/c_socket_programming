@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
-// #include <unistd.h>
+#include <unistd.h>
 #define PORT 8080
 
 int main() {
@@ -71,7 +71,19 @@ int main() {
 		return 1;
 	}
 		
-	
+	// Read the response from the server
+	char buffer[1024];
+	int num_of_bytes_read = read(client_socket, buffer, 1024);
+
+	// Exit if failed to read response
+	if (num_of_bytes_read < 0) {
+		printf("Failed to read response from server");
+		return 1;
+	}
+
+	for (int i = 0; i < num_of_bytes_read; i++) {
+		printf("Char %i: %c\n", i, buffer[i]);
+	}  
 
 	printf("Client success\n");
     return 0;
