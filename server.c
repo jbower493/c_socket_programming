@@ -15,11 +15,12 @@
 
 
 typedef struct node {
-	int data;
+	char line[HTTP_LINE_SIZE];
+	int line_length;
 	struct node* next;
 } node;
 
-node* createNode(int data) {
+node* createNode(char line[HTTP_LINE_SIZE]) {
 	// Malloc space for new node
 	node* new_node = malloc(sizeof(node));
 
@@ -29,7 +30,9 @@ node* createNode(int data) {
 	}
 	
 	// Set the node's data
-	new_node->data = data;
+	for (int i = 0; i < HTTP_LINE_SIZE; i++) {
+		new_node->line[i] = line[i];
+	} 
 
 	// Set the node's "next" pointer
 	new_node->next = NULL;
@@ -40,23 +43,69 @@ node* createNode(int data) {
 
 
 int parse_response(char request_buffer[REQUEST_BUFFER_SIZE], int num_of_bytes_read) {
+
+	//for (int i = 0; i < 30; i++) {
+	//	printf("%c", request_buffer[i]);
+	//}
+
+
+	// Bail out if there is no data
+	if (num_of_bytes_read <= 0) {
+		return 0;
+	}
+
 	// Create linked list
 	node* head = NULL;
 	node* temp = NULL;
 	
-	for (int i = 0; i < 4; i++) {
-		temp = createNode(i);
-
+	// for (int i = 0; i < 4; i++) {
+	//	char line_text[HTTP_LINE_SIZE];
+	//	sprintf(line_text, "Hello the line number: %i", i);
+	//	temp = createNode(line_text);
+	//
 		// First connect new node to old head of list
-		temp->next = head;
+	//	temp->next = head;
 		// Then point head to new node
-		head = temp;			
+	//	head = temp;			
+	//}
+
+	// Create first node
+	temp = createNode("");
+
+	// Index to write to in the line
+	int line_index = 0;
+
+	for (int i = 0; i < num_of_bytes_read; i++) {
+		// Write the current char into the first linked list node. When we hit a new line, create a new linked list node
+		
+		if (request_buffer[i] == '\n') {
+			// Add the current node to the start of the list
+			temp->next = head;
+			head = temp;
+
+			// Create the next node to be written to
+			temp = createNode("");
+			// Reset line index
+			line_index = 0;
+		} else {	
+			// Write the char into the linked list node
+// ERROR: this line needs to use the correct index of temp->line, not [i]
+			temp->line[line_index] = request_buffer[i];
+			temp->line_length = line_index + 1;
+
+			// Increment line index
+			line_index++;
+		}
 	}
 
 	// Traverse linked list
 	temp = head;
 	while (temp != NULL) {
-		printf("Current node: %i\n", temp->data);
+		for (int i = 0; i < temp->line_length; i++) {
+			printf("%c", temp->line[i]);
+		}
+
+		printf("\n");
 		temp = temp->next;
 	}
 
