@@ -13,6 +13,16 @@
 #define REQUEST_BUFFER_SIZE 10240
 #define HTTP_LINE_SIZE 1024
 
+char* accept_key = "Accept:";
+char* user_agent_key = "User-Agent:";
+char* host_key = "Host:";
+
+typedef struct http_headers {
+	char request[HTTP_LINE_SIZE];
+	char accept[HTTP_LINE_SIZE];
+	char host[HTTP_LINE_SIZE];
+	char user_agent[HTTP_LINE_SIZE];
+} http_headers;
 
 typedef struct node {
 	char line[HTTP_LINE_SIZE];
@@ -44,11 +54,6 @@ node* createNode(char line[HTTP_LINE_SIZE]) {
 
 int parse_response(char request_buffer[REQUEST_BUFFER_SIZE], int num_of_bytes_read) {
 
-	//for (int i = 0; i < 30; i++) {
-	//	printf("%c", request_buffer[i]);
-	//}
-
-
 	// Bail out if there is no data
 	if (num_of_bytes_read <= 0) {
 		return 0;
@@ -58,17 +63,6 @@ int parse_response(char request_buffer[REQUEST_BUFFER_SIZE], int num_of_bytes_re
 	node* head = NULL;
 	node* temp = NULL;
 	
-	// for (int i = 0; i < 4; i++) {
-	//	char line_text[HTTP_LINE_SIZE];
-	//	sprintf(line_text, "Hello the line number: %i", i);
-	//	temp = createNode(line_text);
-	//
-		// First connect new node to old head of list
-	//	temp->next = head;
-		// Then point head to new node
-	//	head = temp;			
-	//}
-
 	// Create first node
 	temp = createNode("");
 
@@ -89,7 +83,6 @@ int parse_response(char request_buffer[REQUEST_BUFFER_SIZE], int num_of_bytes_re
 			line_index = 0;
 		} else {	
 			// Write the char into the linked list node
-// ERROR: this line needs to use the correct index of temp->line, not [i]
 			temp->line[line_index] = request_buffer[i];
 			temp->line_length = line_index + 1;
 
@@ -98,17 +91,45 @@ int parse_response(char request_buffer[REQUEST_BUFFER_SIZE], int num_of_bytes_re
 		}
 	}
 
-	// Traverse linked list
+	// Convert linked list of headers into a struct with the headers we're looking for
 	temp = head;
+	http_headers* request_headers;
+
 	while (temp != NULL) {
+		// Allocate the header into our headers struct
+		int first_space_index;
 		for (int i = 0; i < temp->line_length; i++) {
-			printf("%c", temp->line[i]);
+			if (temp->line[i] == ' ') {
+				first_space_index = i;
+				break;
+			}
 		}
 
-		printf("\n");
+		// Extract the header keys and values
+		char header_key[first_space_index - 1];
+		char header_value[temp->line_length - first_space_index - 1];
+		for (int i = 0; i < temp->line_length; i++) {
+			if (i < first_space_index) {
+				header_key[i] = temp->line[i];
+			} else if (i > first_space_index) {
+				header_value[i - first_space_index - 1] = temp->line[i];
+			}
+		}
+
+// ERROR: segfault is somewhere in here
+		// Write the header value into the request headers struct
+		for (int i = first_space_index + 1; i < temp->line_length; i++) {
+			if (strcmp(header_key, accept_key) == 0) {
+				request_headers->accept[i - first_space_index - 1] = temp->line[i];
+			} else if (strcmp(header_key, host_key) == 0) {
+				request_headers->host[i - first_space_index - 1] = temp->line[i];
+			}
+		}
+
 		temp = temp->next;
 	}
 
+	
 	// Free linked list
 	while (head != NULL) {
 		temp = head;
