@@ -1,144 +1,17 @@
 // https://pubs.opengroup.org/onlinepubs/009604499/basedefs/netinet/in.h.html
 #include <netinet/in.h>
 #include <stdio.h>
-// #include <stdlib.h>
 #include <string.h>
 // https://pubs.opengroup.org/onlinepubs/009604499/basedefs/sys/socket.h.html
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "parse_response.h"
+
 #define PORT 8080
 #define BACKLOG 10
-#define REQUEST_BUFFER_SIZE 10240
-#define HTTP_LINE_SIZE 1024
 
-char* accept_key = "Accept:";
-char* user_agent_key = "User-Agent:";
-char* host_key = "Host:";
-
-typedef struct http_headers {
-	char request[HTTP_LINE_SIZE];
-	char accept[HTTP_LINE_SIZE];
-	char host[HTTP_LINE_SIZE];
-	char user_agent[HTTP_LINE_SIZE];
-} http_headers;
-
-typedef struct node {
-	char line[HTTP_LINE_SIZE];
-	int line_length;
-	struct node* next;
-} node;
-
-node* createNode(char line[HTTP_LINE_SIZE]) {
-	// Malloc space for new node
-	node* new_node = malloc(sizeof(node));
-
-	// Make sure we didn't run out of memory
-	if (new_node == NULL) {
-		return NULL;
-	}
-	
-	// Set the node's data
-	for (int i = 0; i < HTTP_LINE_SIZE; i++) {
-		new_node->line[i] = line[i];
-	} 
-
-	// Set the node's "next" pointer
-	new_node->next = NULL;
-
-	// Return pointer to new node we just created
-	return new_node;
-}
-
-
-int parse_response(char request_buffer[REQUEST_BUFFER_SIZE], int num_of_bytes_read) {
-
-	// Bail out if there is no data
-	if (num_of_bytes_read <= 0) {
-		return 0;
-	}
-
-	// Create linked list
-	node* head = NULL;
-	node* temp = NULL;
-	
-	// Create first node
-	temp = createNode("");
-
-	// Index to write to in the line
-	int line_index = 0;
-
-	for (int i = 0; i < num_of_bytes_read; i++) {
-		// Write the current char into the first linked list node. When we hit a new line, create a new linked list node
-		
-		if (request_buffer[i] == '\n') {
-			// Add the current node to the start of the list
-			temp->next = head;
-			head = temp;
-
-			// Create the next node to be written to
-			temp = createNode("");
-			// Reset line index
-			line_index = 0;
-		} else {	
-			// Write the char into the linked list node
-			temp->line[line_index] = request_buffer[i];
-			temp->line_length = line_index + 1;
-
-			// Increment line index
-			line_index++;
-		}
-	}
-
-	// Convert linked list of headers into a struct with the headers we're looking for
-	temp = head;
-	http_headers* request_headers;
-
-	while (temp != NULL) {
-		// Allocate the header into our headers struct
-		int first_space_index;
-		for (int i = 0; i < temp->line_length; i++) {
-			if (temp->line[i] == ' ') {
-				first_space_index = i;
-				break;
-			}
-		}
-
-		// Extract the header keys and values
-		char header_key[first_space_index - 1];
-		char header_value[temp->line_length - first_space_index - 1];
-		for (int i = 0; i < temp->line_length; i++) {
-			if (i < first_space_index) {
-				header_key[i] = temp->line[i];
-			} else if (i > first_space_index) {
-				header_value[i - first_space_index - 1] = temp->line[i];
-			}
-		}
-
-// ERROR: segfault is somewhere in here
-		// Write the header value into the request headers struct
-		for (int i = first_space_index + 1; i < temp->line_length; i++) {
-			if (strcmp(header_key, accept_key) == 0) {
-				request_headers->accept[i - first_space_index - 1] = temp->line[i];
-			} else if (strcmp(header_key, host_key) == 0) {
-				request_headers->host[i - first_space_index - 1] = temp->line[i];
-			}
-		}
-
-		temp = temp->next;
-	}
-
-	
-	// Free linked list
-	while (head != NULL) {
-		temp = head;
-		head = temp->next;
-		free(temp);
-	}
-
-	return 1;
-}
 
 int main() {
 	/***** VARIABLES *****/
@@ -237,14 +110,14 @@ int main() {
 	}
 
 	// Read the request data
-	char request_buffer[REQUEST_BUFFER_SIZE];
+	char request_buffer[10240];
 	int num_of_bytes_read = read(
 		// Client socket to read from
 		connected_client_socket,
 		// Buffer into which to write the read data
 		request_buffer,
 		// Size to read
-		REQUEST_BUFFER_SIZE
+		10240
 	);
 
 	// Exit if read failed
