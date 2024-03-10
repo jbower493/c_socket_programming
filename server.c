@@ -7,11 +7,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "parse_response.h"
-
 #define PORT 8080
 #define BACKLOG 10
 
+int parse_response(char request_buffer[10240]);
 
 int main() {
 	/***** VARIABLES *****/
@@ -156,4 +155,19 @@ int main() {
 	close(server_socket);
 
 	return 0;
+}
+
+/*
+* Helper functions
+*/
+
+typedef struct http_headers {
+	char request[1024];
+	char accept[1024];
+	char host[1024];
+	char user_agent[1024];
+} http_headers;
+
+int parse_response(char request_buffer[10240]) {
+    printf("Response: %s", request_buffer);
 }
