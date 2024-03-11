@@ -32,7 +32,7 @@ int starts_with(char *string, char *target) {
 }
 
 // Returns 0 if successful
-int parse_response(char request_buffer[10240], http_request *request_ptr) {
+int parse_request(char request_buffer[10240], http_request *request_ptr) {
     char *token;
 
     token = strtok(request_buffer, "\n");
@@ -140,74 +140,105 @@ int main() {
 		return 1;
 	}
 
-	// Extract the first connection request in the pending connections queue and return a file descriptor to the connected client socket
-	int connected_client_socket = accept(
-		// Socket, listening socket on the server that we've already created, bound, and listened with
-		server_socket,
-		// address, null pointer or a pointer to a sockaddr structure to hold the address of the connecting socket
-		NULL,
-		// address_len, pointer to a variable (socklen_t) to hold length of the supplied sockaddr structure supplied in arg2, or null pointer if none was provided
-		NULL
-	);
+    // Infinte loop to handle client connections
+    while (1) {
+        // Extract the first connection request in the pending connections queue and return a file descriptor to the connected client socket
+        int connected_client_socket = accept(
+            // Socket, listening socket on the server that we've already created, bound, and listened with
+            server_socket,
+            // address, null pointer or a pointer to a sockaddr structure to hold the address of the connecting socket
+            NULL,
+            // address_len, pointer to a variable (socklen_t) to hold length of the supplied sockaddr structure supplied in arg2, or null pointer if none was provided
+            NULL
+        );
 
-	// Exit if accept failed
-	if (connected_client_socket < 0) {
-		printf("Failded to accept connection\n");
-		return 1;
-	}
+        // Exit if accept failed
+        if (connected_client_socket < 0) {
+            printf("Failed to accept connection\n");
+            return 1;
+        }
 
-	// Read the request data
-	char request_buffer[10240];
-	int num_of_bytes_read = read(
-		// Client socket to read from
-		connected_client_socket,
-		// Buffer into which to write the read data
-		request_buffer,
-		// Size to read
-		10240
-	);
+        // Read the request data
+        char request_buffer[10240];
+        int num_of_bytes_read = read(
+            // Client socket to read from
+            connected_client_socket,
+            // Buffer into which to write the read data
+            request_buffer,
+            // Size to read
+            10240
+        );
 
-	// Exit if read failed
-	if (num_of_bytes_read < 0) {
-		printf("Faild to read request data\n");
-		return 1;
-	}
+        // Exit if read failed
+        if (num_of_bytes_read < 0) {
+            printf("Faild to read request data\n");
+            return 1;
+        }
 
-    http_request request_data;
-	int parse_response_result = parse_response(request_buffer, &request_data);
+        http_request request_data;
+        int parse_request_result = parse_request(request_buffer, &request_data);
 
-    printf("Path: %s\n", request_data.path);
-    printf("Method: %s\n", request_data.method);
-    printf("Protocol: %s\n", request_data.protocol);
-    printf("Accept: %s\n", request_data.headers.accept);
-    printf("User-Agent: %s\n", request_data.headers.user_agent);
-    printf("Host: %s\n", request_data.headers.host);
+        printf("Path: %s\n", request_data.path);
+        printf("Method: %s\n", request_data.method);
+        printf("Protocol: %s\n", request_data.protocol);
+        printf("Accept: %s\n", request_data.headers.accept);
+        printf("User-Agent: %s\n", request_data.headers.user_agent);
+        printf("Host: %s\n", request_data.headers.host);
 
-	// Respond to client
-	// char * response = "Hey client, how's it going";
-    char *response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n<h1>Mate</h1>\n";
+        /*
+        * Response start
+        */
 
-	int num_of_bytes_sent = send(
-		// When sending a response from the server we need to use the client socket rather than the server socket
-		connected_client_socket,
-		// message
-		response,
-		// message size
-		strlen(response),
-		// flags
-		0
-	);
+        // Respond to client
+        char *response;
+        // char *response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n";
 
-	if (num_of_bytes_sent < 0) {
-		printf("Failed to respond to client");
-		return 1;
-	}
-	
+        FILE *file = fopen("./public_html/index.html", "r");
 
-	// Close the connected socket
-	close(connected_client_socket);
-	// Close the listening socket
-	close(server_socket);
+        if (file == NULL) {
+            response = "HTTP/1.1 404 Not Found\nContent-Type: text/html; charset=UTF-8\n\n";
+        } else {
+            // response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n<h1>Found it</h1>";
+
+            char buffer[1024];
+            int num_elements_read = fread(buffer, sizeof(char), sizeof(buffer), file);
+
+            if (num_elements_read == 0) {
+                response = "HTTP/1.1 500 Server Error\nContent-Type: text/html; charset=UTF-8\n\n";
+            } else {
+                // TODO: strcat causing a segfault atm. I think it concats it into the buffer of the first string, that's the problem
+                response = strcat("HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n", buffer);
+                // response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n";
+            }
+
+            fclose(file);
+        }
+
+        int num_of_bytes_sent = send(
+            // When sending a response from the server we need to use the client socket rather than the server socket
+            connected_client_socket,
+            // message
+            response,
+            // message size
+            strlen(response),
+            // flags
+            0
+        );
+
+        if (num_of_bytes_sent < 0) {
+            printf("Failed to respond to client\n");
+            return 1;
+        }
+
+        /*
+        * Response end
+        */
+
+        // Close the connected socket
+        close(connected_client_socket);
+        // Close the listening socket
+        // close(server_socket); TEMP - don't close server socket because we're constanly listening
+    }
 
 	return 0;
 }
