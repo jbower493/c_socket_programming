@@ -10,8 +10,56 @@
 #define PORT 8080
 #define BACKLOG 10
 
-int parse_response(char request_buffer[10240]);
+/*
+* Helpers
+*/
+typedef struct http_request_headers {
+	char *accept;
+	char *host;
+	char *user_agent;
+} http_request_headers;
 
+typedef struct http_request {
+    char method[10];
+    char path[1024];
+    char protocol[20];
+    http_request_headers headers;
+} http_request;
+
+// Returns 0 if true
+int starts_with(char *string, char *target) {
+    return strncmp(string, target, strlen(target));
+}
+
+// Returns 0 if successful
+int parse_response(char request_buffer[10240], http_request *request_ptr) {
+    char *token;
+
+    token = strtok(request_buffer, "\n");
+
+    sscanf(token, "%s %s %s", request_ptr->method, request_ptr->path, request_ptr->protocol);
+
+    while (token != NULL) {
+        if (starts_with(token, "Host:") == 0) {
+            char *host = token + strlen("Host: ");
+            request_ptr->headers.host = host;
+        } else if (starts_with(token, "Accept:") == 0) {
+            char *accept = token + strlen("Accept: ");
+            request_ptr->headers.accept = accept;
+        } else if (starts_with(token, "User-Agent:") == 0) {
+            char *ua = token + strlen("User-Agent: ");
+            request_ptr->headers.user_agent = ua;
+        }
+
+        token = strtok(NULL, "\n");
+    }
+
+    return 0;
+}
+
+/*
+* Main
+*/
 int main() {
 	/***** VARIABLES *****/
 	// Boolean to use for setting socket option values
@@ -125,12 +173,19 @@ int main() {
 		return 1;
 	}
 
-	printf("Bytes read: %i\n", num_of_bytes_read);
+    http_request request_data;
+	int parse_response_result = parse_response(request_buffer, &request_data);
 
-	int parse_response_result = parse_response(request_buffer);
+    printf("Path: %s\n", request_data.path);
+    printf("Method: %s\n", request_data.method);
+    printf("Protocol: %s\n", request_data.protocol);
+    printf("Accept: %s\n", request_data.headers.accept);
+    printf("User-Agent: %s\n", request_data.headers.user_agent);
+    printf("Host: %s\n", request_data.headers.host);
 
 	// Respond to client
-	char * response = "Hey client, how's it going";
+	// char * response = "Hey client, how's it going";
+    char *response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n<h1>Mate</h1>\n";
 
 	int num_of_bytes_sent = send(
 		// When sending a response from the server we need to use the client socket rather than the server socket
@@ -155,54 +210,4 @@ int main() {
 	close(server_socket);
 
 	return 0;
-}
-
-/*
-* Helper functions
-*/
-
-typedef struct http_request_headers {
-	char accept[1024];
-	char host[1024];
-	char user_agent[1024];
-} http_request_headers;
-
-typedef struct http_request {
-    char method[10];
-    char path[1024];
-    char protocol[20];
-    http_request_headers headers;
-} http_request;
-
-// Returns 0 if true
-int starts_with(char *string, char *target) {
-    return strncmp(string, target, strlen(target));
-}
-
-// Returns 0 if successful
-int parse_response(char request_buffer[10240]) {
-    http_request request;
-
-    char *token;
-
-    token = strtok(request_buffer, "\n");
-
-    sscanf(token, "%s %s %s", request.method, request.path, request.protocol);
-
-    while (token != NULL) {
-        if (starts_with(token, "Host:") == 0) {
-            char *host = token + strlen("Host: ");
-            request.headers.host = host;
-        } else if (starts_with(token, "Accept:") == 0) {
-            char *accept = token + strlen("Accept: ");
-            request.headers.accept = accept;
-        } else if (starts_with(token, "User-Agent:") == 0) {
-            char *ua = token + strlen("User-Agent: ");
-            request.headers.user_agent = ua;
-        }
-
-        token = strtok(NULL, "\n");
-    }
-
-    return 0;
 }
