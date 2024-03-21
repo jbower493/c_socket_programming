@@ -190,13 +190,19 @@ int main() {
         */
 
         // Respond to client
-        char *response;
+
+        // Limit response size to 10240 bytes
+        char response[10204];
         // char *response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n";
 
-        FILE *file = fopen("./public_html/index.html", "r");
+        char file_path[1024];
+        strcat(file_path, "./public_html");
+        strcat(file_path, request_data.path);
+
+        FILE *file = fopen(file_path, "r");
 
         if (file == NULL) {
-            response = "HTTP/1.1 404 Not Found\nContent-Type: text/html; charset=UTF-8\n\n";
+            strcat(response, "HTTP/1.1 404 Not Found\nContent-Type: text/html; charset=UTF-8\n\n");
         } else {
             // response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n<h1>Found it</h1>";
 
@@ -204,11 +210,10 @@ int main() {
             int num_elements_read = fread(buffer, sizeof(char), sizeof(buffer), file);
 
             if (num_elements_read == 0) {
-                response = "HTTP/1.1 500 Server Error\nContent-Type: text/html; charset=UTF-8\n\n";
+                strcat(response, "HTTP/1.1 500 Server Error\nContent-Type: text/html; charset=UTF-8\n\n");
             } else {
-                // TODO: strcat causing a segfault atm. I think it concats it into the buffer of the first string, that's the problem
-                response = strcat("HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n", buffer);
-                // response = "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n";
+                strcat(response, "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n");
+                strcat(response, buffer);
             }
 
             fclose(file);
@@ -224,6 +229,12 @@ int main() {
             // flags
             0
         );
+
+        // TODO: mostly working now. Except when you go to /about.html and then to /index.html, it appends some of about onto response from index
+        // Clear out the response buffer
+        memset(response, 0, sizeof(response));
+        // Clear file path
+        memset(file_path, 0, sizeof(file_path));
 
         if (num_of_bytes_sent < 0) {
             printf("Failed to respond to client\n");
