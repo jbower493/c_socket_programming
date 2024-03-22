@@ -178,12 +178,12 @@ int main() {
         http_request request_data;
         int parse_request_result = parse_request(request_buffer, &request_data);
 
-        printf("Path: %s\n", request_data.path);
-        printf("Method: %s\n", request_data.method);
-        printf("Protocol: %s\n", request_data.protocol);
-        printf("Accept: %s\n", request_data.headers.accept);
-        printf("User-Agent: %s\n", request_data.headers.user_agent);
-        printf("Host: %s\n", request_data.headers.host);
+        // printf("Path: %s\n", request_data.path);
+        // printf("Method: %s\n", request_data.method);
+        // printf("Protocol: %s\n", request_data.protocol);
+        // printf("Accept: %s\n", request_data.headers.accept);
+        // printf("User-Agent: %s\n", request_data.headers.user_agent);
+        // printf("Host: %s\n", request_data.headers.host);
 
         /*
         * Response start
@@ -213,12 +213,15 @@ int main() {
                 strcat(response, "HTTP/1.1 500 Server Error\nContent-Type: text/html; charset=UTF-8\n\n");
             } else {
                 strcat(response, "HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\n\n");
+                printf("Bufer: \n%s\n", buffer);
                 strcat(response, buffer);
             }
 
             fclose(file);
-        }
 
+            memset(buffer, '\0', 1024);
+        }
+        
         int num_of_bytes_sent = send(
             // When sending a response from the server we need to use the client socket rather than the server socket
             connected_client_socket,
@@ -230,11 +233,8 @@ int main() {
             0
         );
 
-        // TODO: mostly working now. Except when you go to /about.html and then to /index.html, it appends some of about onto response from index
-        // Clear out the response buffer
-        memset(response, 0, sizeof(response));
-        // Clear file path
-        memset(file_path, 0, sizeof(file_path));
+        memset(response, '\0', 10204);
+        memset(file_path, '\0', 1024);
 
         if (num_of_bytes_sent < 0) {
             printf("Failed to respond to client\n");
